@@ -4,6 +4,9 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Plus, WorkflowIcon } from "lucide-react"
 
+import { Workflow } from "@/lib/db/schema"
+import { generateUniqueName } from "../lib/utils"
+
 import {
   Popover,
   PopoverContent,
@@ -22,31 +25,38 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
 
-// Dummy workflows data
-const workflows = [
-  { id: "1", name: "dominant-wasp" },
-  { id: "2", name: "honest-reindeer" },
-  { id: "3", name: "expected-llama" },
-  { id: "4", name: "essential-ocelot" },
-  { id: "5", name: "creepy-echidna" },
-  { id: "6", name: "eastern-silkworm" },
-  { id: "7", name: "cultural-lion" },
-  { id: "8", name: "proud-weasel" },
-  { id: "9", name: "regional-bonobo" },
-]
+type WorkflowNavProps = {
+  workflows: Workflow[]
+  createWorkflow: (name: string) => Promise<void>
+}
 
-export function WorkflowNav() {
+export function WorkflowNav({ workflows, createWorkflow }: WorkflowNavProps) {
   const { state } = useSidebar()
   const isCollapsed = state === "collapsed"
 
+  const handleCreateWorkflow = () => {
+    const name = generateUniqueName()
+    createWorkflow(name)
+  }
+
   return (
     <SidebarContent>
-      {isCollapsed ? <CollapsedWorkflowMenu /> : <ExpandedWorkflowMenu />}
+      {isCollapsed ? (
+        <CollapsedWorkflowMenu
+          workflows={workflows}
+          onCreateWorkflow={handleCreateWorkflow}
+        />
+      ) : (
+        <ExpandedWorkflowMenu
+          workflows={workflows}
+          onCreateWorkflow={handleCreateWorkflow}
+        />
+      )}
     </SidebarContent>
   )
 }
 
-function useWorkflowItems() {
+function useWorkflowItems(workflows: Workflow[]) {
   const pathname = usePathname()
 
   return workflows.map((workflow) => ({
@@ -56,8 +66,16 @@ function useWorkflowItems() {
   }))
 }
 
-function CollapsedWorkflowMenu() {
-  const items = useWorkflowItems()
+type WorkflowMenuProps = {
+  workflows: Workflow[]
+  onCreateWorkflow: () => void
+}
+
+function CollapsedWorkflowMenu({
+  workflows,
+  onCreateWorkflow,
+}: WorkflowMenuProps) {
+  const items = useWorkflowItems(workflows)
 
   return (
     <SidebarGroup className="p-0">
@@ -75,6 +93,7 @@ function CollapsedWorkflowMenu() {
                 <Button
                   variant="ghost"
                   className="h-auto w-full justify-start gap-2 px-3 py-2 font-normal"
+                  onClick={onCreateWorkflow}
                 >
                   <Plus className="size-4" />
                   <span>New workflow</span>
@@ -101,14 +120,22 @@ function CollapsedWorkflowMenu() {
   )
 }
 
-function ExpandedWorkflowMenu() {
-  const items = useWorkflowItems()
+function ExpandedWorkflowMenu({
+  workflows,
+  onCreateWorkflow,
+}: WorkflowMenuProps) {
+  const items = useWorkflowItems(workflows)
 
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Workflows</SidebarGroupLabel>
       <SidebarGroupAction asChild>
-        <Button variant="ghost" size="icon" className="size-5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-5"
+          onClick={onCreateWorkflow}
+        >
           <Plus />
           <span className="sr-only">Add Workflow</span>
         </Button>
