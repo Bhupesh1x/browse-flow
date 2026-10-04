@@ -12,9 +12,11 @@ import {
   type OnNodesChange,
   type OnEdgesChange,
   type OnConnect,
+  type ColorMode,
 } from "@xyflow/react"
 import "@xyflow/react/dist/style.css"
-import { useCallback, useState } from "react"
+import { useTheme } from "next-themes"
+import { useCallback, useEffect, useState } from "react"
 
 const initialNodes: Node[] = [
   {
@@ -43,6 +45,12 @@ const initialEdges: Edge[] = [
 export function WorkflowCanvas() {
   const [nodes, setNodes] = useState(initialNodes)
   const [edges, setEdges] = useState(initialEdges)
+  const [mounted, setMounted] = useState(false)
+  const { resolvedTheme } = useTheme()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -59,6 +67,9 @@ export function WorkflowCanvas() {
     []
   )
 
+  const colorMode: ColorMode =
+    mounted && resolvedTheme === "dark" ? "dark" : "light"
+
   return (
     <div className="size-full">
       <ReactFlow
@@ -67,7 +78,21 @@ export function WorkflowCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        colorMode={colorMode}
         fitView
+        connectionLineStyle={{ stroke: "var(--border)" }}
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          style: { stroke: "var(--border)" },
+        }}
+        style={
+          {
+            "--xy-background-color": "var(--background)",
+            "--xy-edge-stroke-width": 2,
+            "--xy-connectionline-stroke-width": 2,
+          } as React.CSSProperties
+        }
+        maxZoom={1}
       >
         <Controls />
       </ReactFlow>
