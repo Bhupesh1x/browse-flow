@@ -139,6 +139,12 @@
       "skillPath": "skills/inngest-v3-v4-migration/SKILL.md",
       "computedHash": "6f24b9c0f79cab5213f60715f8876eadbe43301d373b8276a305607aba356037"
     },
+    "liveblocks-best-practices": {
+      "source": "liveblocks/skills",
+      "sourceType": "github",
+      "skillPath": "skills/liveblocks-best-practices/SKILL.md",
+      "computedHash": "df4f54f66e81c580d25c5fee989768368837df694ab63c0f4a0fd70500cd16af"
+    },
     "neon": {
       "source": "neondatabase/agent-skills",
       "sourceType": "github",
