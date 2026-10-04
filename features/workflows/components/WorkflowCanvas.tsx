@@ -2,12 +2,11 @@
 
 import {
   ReactFlow,
-  Background,
   Controls,
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
-  type Node,
+  NodeTypes,
   type Edge,
   type OnNodesChange,
   type OnEdgesChange,
@@ -18,18 +17,17 @@ import "@xyflow/react/dist/style.css"
 import { useTheme } from "next-themes"
 import { useCallback, useEffect, useState } from "react"
 
-const initialNodes: Node[] = [
+import { StepNode } from "@/features/workflows/components/StepNode"
+import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
+
+const nodeTypes: NodeTypes = { step: StepNode }
+
+const initialNodes: StepNodeType[] = [
   {
-    id: "n1",
+    id: "start",
+    type: "step",
     position: { x: 0, y: 0 },
-    data: { label: "Node 1" },
-    type: "input",
-  },
-  {
-    id: "n2",
-    position: { x: 100, y: 100 },
-    data: { label: "Node 2" },
-    type: "output",
+    data: { type: "start", kind: "trigger", title: "Start", values: {} },
   },
 ]
 
@@ -52,7 +50,7 @@ export function WorkflowCanvas() {
     setMounted(true)
   }, [])
 
-  const onNodesChange: OnNodesChange = useCallback(
+  const onNodesChange: OnNodesChange<StepNodeType> = useCallback(
     (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
     []
   )
@@ -73,6 +71,7 @@ export function WorkflowCanvas() {
   return (
     <div className="size-full">
       <ReactFlow
+        nodeTypes={nodeTypes}
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
