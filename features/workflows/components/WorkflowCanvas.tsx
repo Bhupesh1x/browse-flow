@@ -3,6 +3,7 @@
 import {
   ReactFlow,
   Controls,
+  ConnectionLineType,
   addEdge,
   applyNodeChanges,
   applyEdgeChanges,
@@ -31,14 +32,7 @@ const initialNodes: StepNodeType[] = [
   },
 ]
 
-const initialEdges: Edge[] = [
-  {
-    id: "n1-n2",
-    source: "n1",
-    target: "n2",
-    type: "smoothstep",
-  },
-]
+const initialEdges: Edge[] = [];
 
 export function WorkflowCanvas() {
   const [nodes, setNodes] = useState(initialNodes)
@@ -80,6 +74,7 @@ export function WorkflowCanvas() {
         colorMode={colorMode}
         fitView
         connectionLineStyle={{ stroke: "var(--border)" }}
+        connectionLineType={ConnectionLineType.SmoothStep}
         defaultEdgeOptions={{
           type: "smoothstep",
           style: { stroke: "var(--border)" },
