@@ -11,7 +11,11 @@ import { Palette } from "./sidebar/Palette"
 import { Inspector } from "./sidebar/Inspector"
 import { SidebarHeader } from "./sidebar/SidebarHeader"
 
-export function RightSidebar() {
+interface RightSidebarProps {
+  workflowId: string
+}
+
+export function RightSidebar({ workflowId }: RightSidebarProps) {
   const [tab, setTab] = useState("toolbar")
   const selected = useStore((store) => store.nodes?.find((node) => node.selected)) as StepNodeType | undefined;
 
@@ -27,7 +31,7 @@ export function RightSidebar() {
       onValueChange={setTab}
       className="flex size-full flex-col"
     >
-      <SidebarHeader />
+      <SidebarHeader workflowId={workflowId} />
       <TabsList
         className="gap-x-2 bg-transparent px-2"
         style={{ display: "flex", gap: 2 }}
