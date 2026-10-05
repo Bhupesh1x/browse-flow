@@ -1,27 +1,19 @@
 "use client"
 
-import {
-  ReactFlow,
-  Controls,
-  ConnectionLineType,
-  addEdge,
-  applyNodeChanges,
-  applyEdgeChanges,
-  NodeTypes,
-  type Edge,
-  type OnNodesChange,
-  type OnEdgesChange,
-  type OnConnect,
-  type ColorMode,
-} from "@xyflow/react"
-import "@xyflow/react/dist/style.css"
+import { ReactFlow, Controls, ConnectionLineType, type ColorMode } from "@xyflow/react"
+import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
+
 import { useTheme } from "next-themes"
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { StepNode } from "@/features/workflows/components/StepNode"
 import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
 
-const nodeTypes: NodeTypes = { step: StepNode }
+import "@xyflow/react/dist/style.css"
+import "@liveblocks/react-ui/styles.css"
+import "@liveblocks/react-flow/styles.css"
+
+const nodeTypes = { step: StepNode }
 
 const initialNodes: StepNodeType[] = [
   {
@@ -32,32 +24,20 @@ const initialNodes: StepNodeType[] = [
   },
 ]
 
-const initialEdges: Edge[] = [];
-
 export function WorkflowCanvas() {
-  const [nodes, setNodes] = useState(initialNodes)
-  const [edges, setEdges] = useState(initialEdges)
   const [mounted, setMounted] = useState(false)
   const { resolvedTheme } = useTheme()
+
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, onDelete } =
+    useLiveblocksFlow<StepNodeType>({
+      suspense: true,
+      nodes: { initial: initialNodes },
+      edges: { initial: [] },
+    })
 
   useEffect(() => {
     setMounted(true)
   }, [])
-
-  const onNodesChange: OnNodesChange<StepNodeType> = useCallback(
-    (changes) => setNodes((nds) => applyNodeChanges(changes, nds)),
-    []
-  )
-
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => setEdges((eds) => applyEdgeChanges(changes, eds)),
-    []
-  )
-
-  const onConnect: OnConnect = useCallback(
-    (connection) => setEdges((eds) => addEdge(connection, eds)),
-    []
-  )
 
   const colorMode: ColorMode =
     mounted && resolvedTheme === "dark" ? "dark" : "light"
@@ -71,6 +51,7 @@ export function WorkflowCanvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onDelete={onDelete}
         colorMode={colorMode}
         fitView
         connectionLineStyle={{ stroke: "var(--border)" }}
@@ -88,6 +69,7 @@ export function WorkflowCanvas() {
         }
         maxZoom={1}
       >
+        <Cursors />
         <Controls />
       </ReactFlow>
     </div>
