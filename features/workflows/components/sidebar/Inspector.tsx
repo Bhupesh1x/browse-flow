@@ -1,3 +1,5 @@
+import { useReactFlow } from "@xyflow/react"
+
 import { Label } from "@/components/ui/label"
 
 import {
@@ -6,11 +8,13 @@ import {
   type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
 
-import { FieldInput } from "./FieldInput"
-import { NodeIcon } from "./NodeIcon"
 import { Section } from "./Section"
+import { NodeIcon } from "./NodeIcon"
+import { FieldInput } from "./FieldInput"
 
 export function Inspector({ node }: { node: StepNodeType | undefined }) {
+  const { updateNodeData } = useReactFlow()
+
   if (!node) {
     return (
       <Section title="Editor">
@@ -37,7 +41,9 @@ export function Inspector({ node }: { node: StepNodeType | undefined }) {
                 field={field}
                 value={values[field.key] ?? ""}
                 onChange={(value) => {
-                  console.log(value)
+                  updateNodeData(node.id, {
+                    values: { ...values, [field.key]: value },
+                  })
                 }}
               />
             </div>
