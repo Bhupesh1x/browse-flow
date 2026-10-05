@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useStore } from "@xyflow/react"
 
 import { type StepNodeType } from "@/features/workflows/nodes/node-registry"
@@ -14,6 +14,12 @@ import { SidebarHeader } from "./sidebar/SidebarHeader"
 export function RightSidebar() {
   const [tab, setTab] = useState("toolbar")
   const selected = useStore((store) => store.nodes?.find((node) => node.selected)) as StepNodeType | undefined;
+
+  useEffect(() => {
+    if(!selected?.id) return;
+
+    setTab("editor");
+  }, [selected?.id])
 
   return (
     <Tabs
