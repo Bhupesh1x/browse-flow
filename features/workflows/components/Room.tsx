@@ -22,7 +22,7 @@ export function Room({
         <ClientSideSuspense
           fallback={
             <div className="flex h-svh w-svw items-center justify-center">
-              <Spinner className="size-8" />
+              <Spinner className="size-8 text-muted-foreground" />
             </div>
           }
         >

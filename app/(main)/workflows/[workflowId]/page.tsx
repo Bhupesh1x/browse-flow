@@ -25,6 +25,7 @@ export default async function WorkflowPage({
     groupsAccesses: {
       [orgId]: ["room:write"],
     },
+    organizationId: orgId
   })
 
   return (

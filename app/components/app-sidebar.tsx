@@ -24,6 +24,8 @@ export async function AppSidebar() {
             <OrganizationSwitcher
               hidePersonal
               afterSelectOrganizationUrl="/workflows"
+              afterCreateOrganizationUrl="/workflows"
+              afterLeaveOrganizationUrl="/workflows"
               appearance={{
                 elements: {
                   rootBox: "w-full max-w-full",
