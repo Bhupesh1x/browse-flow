@@ -1,6 +1,10 @@
-import type { StepTools } from "inngest"
+import type { GetStepTools } from "inngest"
+
+import { inngest } from "@/inngest/client"
 
 import { workflowChannel } from "./channels"
+
+type StepTools = GetStepTools<typeof inngest>
 
 export async function emitStepUpdate(
   step: StepTools,
