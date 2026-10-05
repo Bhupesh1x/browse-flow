@@ -1,3 +1,8 @@
+"use client"
+
+import { toast } from "sonner"
+import { useReactFlow, useStore } from "@xyflow/react"
+
 import {
   Accordion,
   AccordionContent,
@@ -10,6 +15,7 @@ import {
   nodeRegistry,
   type NodeType,
   type StepNodeKind,
+  type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
 
 import { NodeIcon } from "./NodeIcon"
@@ -23,8 +29,49 @@ const sections: { kind: StepNodeKind; label: string }[] = [
 const definitions = Object.values(nodeRegistry)
 
 export function Palette() {
+  const { getNodes, addNodes, getViewport } = useReactFlow<StepNodeType>()
+  // The pane's measured size, used to find the center of the current view.
+  const width = useStore((store) => store.width)
+  const height = useStore((store) => store.height)
+
   const add = (type: NodeType) => {
-    console.log(type)
+    const definition = nodeRegistry[type]
+    const nodes = getNodes()
+
+    // Check if trying to add a trigger node when one already exists
+    if (definition.kind === "trigger") {
+      const existingTrigger = nodes.find((node) => node.data.kind === "trigger")
+      if (existingTrigger) {
+        toast.error("Only one trigger node is allowed per workflow")
+        return
+      }
+    }
+
+    // Count existing nodes of the same type for label numbering
+    const sameTypeNodes = nodes.filter((node) => node.data.type === type)
+    const count = sameTypeNodes.length + 1
+    const title = count > 1 ? `${definition.label} ${count}` : definition.label
+
+    // Calculate position at center of viewport with random offset
+    const { x, y, zoom } = getViewport()
+    const position = {
+      x: (width / 2 - x) / zoom,
+      y: (height / 2 - y) / zoom,
+    }
+
+    const newNode: StepNodeType = {
+      id: crypto.randomUUID(),
+      type: "step",
+      position,
+      data: {
+        type,
+        kind: definition.kind,
+        title,
+        values: {},
+      },
+    }
+
+    addNodes(newNode)
   }
 
   return (

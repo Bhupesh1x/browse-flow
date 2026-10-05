@@ -6,6 +6,7 @@ import { liveblocks } from "@/lib/liveblocks"
 import { getWorkflow } from "@/features/workflows/data"
 import { Room } from "@/features/workflows/components/Room"
 import { WorkflowShell } from "@/features/workflows/components/WorkflowShell"
+import { WorkflowProvider } from "@/features/workflows/components/WorkflowProvider"
 
 export default async function WorkflowPage({
   params,
@@ -25,13 +26,15 @@ export default async function WorkflowPage({
     groupsAccesses: {
       [orgId]: ["room:write"],
     },
-    organizationId: orgId
+    organizationId: orgId,
   })
 
   return (
     <div className="h-full w-full">
       <Room roomId={workflowId}>
-        <WorkflowShell workflowId={workflowId} />
+        <WorkflowProvider>
+          <WorkflowShell workflowId={workflowId} />
+        </WorkflowProvider>
       </Room>
     </div>
   )

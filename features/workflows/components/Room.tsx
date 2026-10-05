@@ -38,7 +38,7 @@ export function Room({
       <RoomProvider id={roomId}>
         <ClientSideSuspense
           fallback={
-            <div className="flex h-svh w-svw items-center justify-center">
+            <div className="flex h-svh items-center justify-center">
               <Spinner className="size-8 text-muted-foreground" />
             </div>
           }
