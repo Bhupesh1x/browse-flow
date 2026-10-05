@@ -1,10 +1,16 @@
 "use client"
 
-import { ReactFlow, Controls, ConnectionLineType, type ColorMode } from "@xyflow/react"
-import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
-
+import {
+  ReactFlow,
+  Controls,
+  ConnectionLineType,
+  type ColorMode,
+  Panel,
+} from "@xyflow/react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
+import { AvatarStack } from "@liveblocks/react-ui"
+import { useLiveblocksFlow, Cursors } from "@liveblocks/react-flow"
 
 import { StepNode } from "@/features/workflows/components/StepNode"
 import type { StepNodeType } from "@/features/workflows/nodes/node-registry"
@@ -71,6 +77,9 @@ export function WorkflowCanvas() {
       >
         <Cursors />
         <Controls />
+        <Panel position="top-right">
+          <AvatarStack />
+        </Panel>
       </ReactFlow>
     </div>
   )
