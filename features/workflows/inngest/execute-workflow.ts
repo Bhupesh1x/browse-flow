@@ -12,7 +12,16 @@ const executeWorkflowEvent = eventType("app/execute.workflow", {
 })
 
 export const executeWorkflow = inngest.createFunction(
-  { id: "execute-workflow", triggers: [executeWorkflowEvent] },
+  {
+    id: "execute-workflow",
+    triggers: [executeWorkflowEvent],
+    cancelOn: [
+      {
+        event: "app/cancel.workflow",
+        if: "event.data.id == async.data.id",
+      },
+    ],
+  },
   async ({ event, step }) => {
     const workflowRunId = event.data.id
 

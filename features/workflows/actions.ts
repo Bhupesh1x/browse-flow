@@ -63,3 +63,18 @@ export async function runWorkflowAction(
 
   return { success: true }
 }
+
+export async function cancelWorkflowAction(workflowId: string) {
+  const { orgId } = await auth()
+
+  if (!orgId) {
+    return { success: false, error: "No organization selected." }
+  }
+
+  await inngest.send({
+    name: "app/cancel.workflow",
+    data: { id: workflowId },
+  })
+
+  return { success: true }
+}
