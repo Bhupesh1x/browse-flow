@@ -58,7 +58,7 @@ export async function runWorkflowAction(
 
   await inngest.send({
     name: "app/execute.workflow",
-    data: { id: workflowId },
+    data: { id: workflowId, orgId },
   })
 
   return { success: true }

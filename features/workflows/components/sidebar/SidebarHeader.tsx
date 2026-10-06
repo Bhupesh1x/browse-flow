@@ -3,6 +3,7 @@
 import { toast } from "sonner"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useReactFlow } from "@xyflow/react"
 import { MoreHorizontal, Play, Trash2 } from "lucide-react"
 
 import {
@@ -13,18 +14,22 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
 
-import { deleteWorkflowAction } from "../../actions"
+import { validateGraph } from "../../lib/validate-graph"
+import type { StepNodeType } from "../../nodes/node-registry"
+import { deleteWorkflowAction, runWorkflowAction } from "../../actions"
+
 
 interface ActionsMenuProps {
+  disabled: boolean
   isDeleting: boolean
   onDelete: () => void
 }
 
-function ActionsMenu({ isDeleting, onDelete }: ActionsMenuProps) {
+function ActionsMenu({ disabled, isDeleting, onDelete }: ActionsMenuProps) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={isDeleting}>
-        <Button size="icon" variant="ghost" disabled={isDeleting}>
+      <DropdownMenuTrigger asChild disabled={disabled}>
+        <Button size="icon" variant="ghost" disabled={disabled}>
           <MoreHorizontal />
         </Button>
       </DropdownMenuTrigger>
@@ -32,7 +37,7 @@ function ActionsMenu({ isDeleting, onDelete }: ActionsMenuProps) {
         <DropdownMenuItem
           variant="destructive"
           className="cursor-pointer p-2 text-xs [&_svg:not([class*='size-'])]:size-3.5"
-          disabled={isDeleting}
+          disabled={disabled}
           onSelect={(e) => {
             e.preventDefault()
             onDelete()
@@ -47,21 +52,16 @@ function ActionsMenu({ isDeleting, onDelete }: ActionsMenuProps) {
 }
 
 interface RunButtonProps {
+  isRunningWorkflow: boolean
   disabled: boolean
+  onRun: () => void
 }
 
-function RunButton({ disabled }: RunButtonProps) {
+function RunButton({ isRunningWorkflow, disabled, onRun }: RunButtonProps) {
   return (
-    <Button
-      size="sm"
-      variant="secondary"
-      disabled={disabled}
-      onClick={() => {
-        console.log("Run workflow...")
-      }}
-    >
+    <Button size="sm" variant="secondary" disabled={disabled} onClick={onRun}>
       <Play fill="primary" />
-      Run
+      {isRunningWorkflow ? "Running..." : "Run"}
     </Button>
   )
 }
@@ -72,7 +72,9 @@ interface SidebarHeaderProps {
 
 export function SidebarHeader({ workflowId }: SidebarHeaderProps) {
   const router = useRouter()
+  const { getNodes, getEdges } = useReactFlow<StepNodeType>()
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
 
   async function handleDelete() {
     setIsDeleting(true)
@@ -88,13 +90,46 @@ export function SidebarHeader({ workflowId }: SidebarHeaderProps) {
     }
   }
 
+  async function handleRun() {
+    const graph = {
+      nodes: getNodes(),
+      edges: getEdges(),
+    }
+
+    const errors = validateGraph(graph)
+
+    if (errors.length > 0) {
+      toast.error(errors.join(","))
+      return
+    }
+
+    setIsRunning(true)
+
+    const result = await runWorkflowAction(workflowId, graph)
+
+    if (result.success) {
+      toast.success("Workflow started...")
+    } else {
+      toast.error(result.error)
+    }
+
+    setIsRunning(false)
+  }
+
+  const isDisabled = isDeleting || isRunning
+
   return (
     <div className="flex items-center justify-between border-b border-border p-2">
       <ActionsMenu
+        disabled={isDisabled}
         isDeleting={isDeleting}
         onDelete={handleDelete}
       />
-      <RunButton disabled={isDeleting} />
+      <RunButton
+        disabled={isDisabled}
+        isRunningWorkflow={isRunning}
+        onRun={handleRun}
+      />
     </div>
   )
 }

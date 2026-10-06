@@ -1,13 +1,16 @@
 import { z } from "zod"
-import { eventType } from "inngest"
+import * as toposort from "toposort"
+import { eventType, NonRetriableError } from "inngest"
 
 import { inngest } from "@/inngest/client"
 
+import { getWorkflow } from "../data"
 import { emitStepUpdate } from "./utils"
 
 const executeWorkflowEvent = eventType("app/execute.workflow", {
   schema: z.object({
     id: z.string(),
+    orgId: z.string(),
   }),
 })
 
@@ -23,26 +26,79 @@ export const executeWorkflow = inngest.createFunction(
     ],
   },
   async ({ event, step }) => {
-    const workflowRunId = event.data.id
+    const { id: workflowId, orgId } = event.data
 
-    await emitStepUpdate(step, workflowRunId, "handle-task", "running")
-
-    const result = await step.run("handle-task", async () => {
-      return { processed: true, id: workflowRunId }
+    // Fetch the workflow from database
+    const workflow = await step.run("fetch-workflow", async () => {
+      return await getWorkflow(workflowId, orgId)
     })
 
-    await emitStepUpdate(step, workflowRunId, "handle-task", "complete", result)
+    if (!workflow) {
+      throw new NonRetriableError(`Workflow ${workflowId} not found`)
+    }
 
-    await emitStepUpdate(step, workflowRunId, "pause", "running")
+    // Validate graph exists
+    if (!workflow.graph) {
+      throw new NonRetriableError(
+        `Workflow ${workflowId} has no graph configured`
+      )
+    }
 
-    await step.sleep("pause", "5s")
+    const { nodes, edges } = workflow.graph
 
-    await emitStepUpdate(step, workflowRunId, "pause", "complete")
+    // Build set of connected node IDs (nodes that have at least one edge)
+    const connectedNodeIds = new Set<string>()
+    for (const edge of edges) {
+      connectedNodeIds.add(edge.source)
+      connectedNodeIds.add(edge.target)
+    }
 
-    await emitStepUpdate(step, workflowRunId, "workflow", "complete", {
-      message: `Task ${workflowRunId} complete`,
-    })
+    // Filter to only connected nodes
+    const connectedNodes = nodes.filter((node) => connectedNodeIds.has(node.id))
 
-    return { message: `Task ${workflowRunId} complete`, result }
+    // Build edge pairs for toposort
+    const edgePairs: [string, string][] = edges.map((edge) => [
+      edge.source,
+      edge.target,
+    ])
+
+    // Get topologically sorted node IDs
+    const sortedNodeIds = toposort.array(
+      connectedNodes.map((n) => n.id),
+      edgePairs
+    )
+
+    // Create a map for quick node lookup
+    const nodeMap = new Map(connectedNodes.map((node) => [node.id, node]))
+
+    // Loop through nodes in topological order and execute each as a step
+    for (const nodeId of sortedNodeIds) {
+      const node = nodeMap.get(nodeId)
+
+      if (!node) {
+        continue
+      }
+
+      await emitStepUpdate(step, workflowId, nodeId, "running")
+
+      const result = await step.run(`node-${nodeId}-${node.data.title}`, async () => {
+        return {
+          nodeId: node.id,
+          type: node.data.type,
+          kind: node.data.kind,
+          title: node.data.title,
+          values: node.data.values,
+          executedAt: Date.now(),
+        }
+      })
+
+      await emitStepUpdate(step, workflowId, nodeId, "complete", result)
+    }
+
+    return {
+      message: `Workflow ${workflowId} complete`,
+      nodesExecuted: sortedNodeIds.length,
+      executionOrder: sortedNodeIds,
+    }
   }
 )
