@@ -73,7 +73,7 @@ export const executeWorkflow = inngest.createFunction(
     // Create a map for quick node lookup
     const nodeMap = new Map(connectedNodes.map((node) => [node.id, node]))
 
-    let stagehand: Stagehand | null = null
+    let stagehand: Stagehand | undefined
 
     async function getStagehand() {
       if (stagehand) return stagehand
@@ -121,6 +121,8 @@ export const executeWorkflow = inngest.createFunction(
 
       await emitStepUpdate(step, workflowId, nodeId, "complete", result)
     }
+
+    await stagehand?.close();
 
     return {
       message: `Workflow ${workflowId} complete`,
