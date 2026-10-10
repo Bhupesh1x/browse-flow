@@ -15,3 +15,9 @@ When working with ReactFlow (@xyflow/react), refer to the official LLM documenta
 
 When working with database entities, always import and use the inferred types from `@/lib/db/schema` (e.g., `Workflow`, `User`). Do not create duplicate type definitions for database entities.
 <!-- END:drizzle-types-rules -->
+
+<!-- BEGIN:stagehand-agent-rules -->
+# Stagehand / Browserbase browser automation
+
+When working with Stagehand (`@browserbasehq/stagehand`) or Browserbase browser automation, refer to the skill documentation at `.agents/skills/stagehand/skill.md`. This covers Stagehand v4 APIs including `act`, `extract`, `observe`, multi-page workflows, caching, and security best practices.
+<!-- END:stagehand-agent-rules -->
