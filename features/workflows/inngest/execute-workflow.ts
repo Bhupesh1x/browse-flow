@@ -6,6 +6,8 @@ import { inngest } from "@/inngest/client"
 
 import { getWorkflow } from "../data"
 import { emitStepUpdate } from "./utils"
+import { Stagehand } from "@browserbasehq/stagehand"
+import { nodeExecutors } from "../nodes/node-executors"
 
 const executeWorkflowEvent = eventType("app/execute.workflow", {
   schema: z.object({
@@ -71,6 +73,22 @@ export const executeWorkflow = inngest.createFunction(
     // Create a map for quick node lookup
     const nodeMap = new Map(connectedNodes.map((node) => [node.id, node]))
 
+    let stagehand: Stagehand | null = null
+
+    async function getStagehand() {
+      if (stagehand) return stagehand
+
+      stagehand = new Stagehand({
+        env: "BROWSERBASE",
+        apiKey: process.env.BROWSERBASE_API_KEY,
+        model: "google/gemini-2.5-flash",
+        disablePino: true,
+      })
+
+      await stagehand.init()
+      return stagehand
+    }
+
     // Loop through nodes in topological order and execute each as a step
     for (const nodeId of sortedNodeIds) {
       const node = nodeMap.get(nodeId)
@@ -81,16 +99,25 @@ export const executeWorkflow = inngest.createFunction(
 
       await emitStepUpdate(step, workflowId, nodeId, "running")
 
-      const result = await step.run(`node-${nodeId}-${node.data.title}`, async () => {
-        return {
-          nodeId: node.id,
-          type: node.data.type,
-          kind: node.data.kind,
-          title: node.data.title,
-          values: node.data.values,
-          executedAt: Date.now(),
+      const executer = nodeExecutors[node.data.type]
+
+      if (executer) {
+        await executer({ values: node.data.values, getStagehand })
+      }
+
+      const result = await step.run(
+        `node-${nodeId}-${node.data.title}`,
+        async () => {
+          return {
+            nodeId: node.id,
+            type: node.data.type,
+            kind: node.data.kind,
+            title: node.data.title,
+            values: node.data.values,
+            executedAt: Date.now(),
+          }
         }
-      })
+      )
 
       await emitStepUpdate(step, workflowId, nodeId, "complete", result)
     }
