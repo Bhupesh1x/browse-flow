@@ -1,13 +1,14 @@
 import { z } from "zod"
 import * as toposort from "toposort"
+import { Stagehand } from "@browserbasehq/stagehand"
 import { eventType, NonRetriableError } from "inngest"
 
 import { inngest } from "@/inngest/client"
 
 import { getWorkflow } from "../data"
 import { emitStepUpdate } from "./utils"
-import { Stagehand } from "@browserbasehq/stagehand"
 import { nodeExecutors } from "../nodes/node-executors"
+import { resolveNodeInputs, type NodeOutputs } from "../lib/resolve-placeholders"
 
 const executeWorkflowEvent = eventType("app/execute.workflow", {
   schema: z.object({
@@ -89,6 +90,9 @@ export const executeWorkflow = inngest.createFunction(
       return stagehand
     }
 
+    // Accumulated outputs from executed nodes, keyed by nodeId
+    const outputs: NodeOutputs = {}
+
     // Loop through nodes in topological order and execute each as a step
     for (const nodeId of sortedNodeIds) {
       const node = nodeMap.get(nodeId)
@@ -99,11 +103,18 @@ export const executeWorkflow = inngest.createFunction(
 
       await emitStepUpdate(step, workflowId, nodeId, "running")
 
-      const executer = nodeExecutors[node.data.type]
+      // Resolve placeholders in node values using previous outputs
+      const resolvedValues = resolveNodeInputs(node.data.values, outputs)
 
-      if (executer) {
-        await executer({ values: node.data.values, getStagehand })
+      const executor = nodeExecutors[node.data.type]
+
+      let executorResult: unknown = null
+      if (executor) {
+        executorResult = await executor({ values: resolvedValues, getStagehand })
       }
+
+      // Store the output for this node
+      outputs[nodeId] = executorResult
 
       const result = await step.run(
         `node-${nodeId}-${node.data.title}`,
@@ -113,7 +124,8 @@ export const executeWorkflow = inngest.createFunction(
             type: node.data.type,
             kind: node.data.kind,
             title: node.data.title,
-            values: node.data.values,
+            values: resolvedValues,
+            output: executorResult,
             executedAt: Date.now(),
           }
         }

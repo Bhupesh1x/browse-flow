@@ -12,6 +12,11 @@ export type NodeField = {
   required?: boolean
 }
 
+export type NodeOutput = {
+  path: string
+  label: string
+}
+
 // A node type's manifest entry. Add a node by adding an entry to nodeRegistry.
 export type NodeDefinition = {
   type: string
@@ -20,6 +25,7 @@ export type NodeDefinition = {
   icon: LucideIcon
   accent: string // Tailwind classes for the icon chip color
   fields: NodeField[]
+  output: NodeOutput[]
 }
 
 export const nodeRegistry = {
@@ -30,6 +36,7 @@ export const nodeRegistry = {
     icon: MousePointerClick,
     accent: "bg-blue-500 text-white",
     fields: [],
+    output: [],
   },
   "open-url": {
     type: "open-url",
@@ -38,6 +45,10 @@ export const nodeRegistry = {
     icon: Globe,
     accent: "bg-emerald-500 text-white",
     fields: [{ key: "url", label: "URL", placeholder: "https://youtube.com" }],
+    output: [
+      { path: "url", label: "URL" },
+      { path: "title", label: "Title" },
+    ],
   },
 } satisfies Record<string, NodeDefinition>
 
@@ -55,7 +66,5 @@ export type StepNodeData = {
 export type StepNodeType = Node<StepNodeData, "step">
 
 export type ActionNodeType = {
-  [K in NodeType]: (typeof nodeRegistry)[K]["kind"] extends "action"
-    ? K
-    : never
+  [K in NodeType]: (typeof nodeRegistry)[K]["kind"] extends "action" ? K : never
 }[NodeType]
