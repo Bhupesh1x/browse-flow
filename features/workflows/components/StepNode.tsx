@@ -1,4 +1,5 @@
 import { memo } from "react"
+import { Loader2 } from "lucide-react"
 import { Handle, Position, type NodeProps } from "@xyflow/react"
 
 import { cn } from "@/lib/utils"
@@ -8,10 +9,19 @@ import {
   type StepNodeType,
 } from "@/features/workflows/nodes/node-registry"
 
-function StepNodeComponent({ data, selected }: NodeProps<StepNodeType>) {
+import { useNodeExecutionStatus } from "./WorkflowExecutionProvider"
+
+function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   const { type, kind, title, values } = data
   const def = nodeRegistry[type]
-  const Icon = def.icon
+  const DefaultIcon = def.icon
+
+  // Get realtime execution status for this node
+  const executionStatus = useNodeExecutionStatus(id)
+  const isRunning = executionStatus === "running"
+  const isFailed = executionStatus === "failed"
+
+  const Icon = isRunning ? Loader2 : DefaultIcon
 
   // A trigger starts the flow and takes no input, so it has no target handle.
   const hasTarget = kind !== "trigger"
@@ -22,8 +32,14 @@ function StepNodeComponent({ data, selected }: NodeProps<StepNodeType>) {
   return (
     <div
       className={cn(
-        "max-w-80 min-w-50 rounded-(--radius) border-2 border-border bg-card text-card-foreground",
-        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background"
+        "max-w-80 min-w-50 rounded-(--radius) border-2 bg-card text-card-foreground transition-all duration-200",
+        "border-border",
+        selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
+        // Execution status rings (override selection ring when active)
+        isRunning &&
+          "border-blue-500 ring-2 ring-blue-500 ring-offset-2 ring-offset-background",
+        isFailed &&
+          "border-red-500 ring-2 ring-red-500 ring-offset-2 ring-offset-background"
       )}
     >
       {hasTarget && (
@@ -42,7 +58,7 @@ function StepNodeComponent({ data, selected }: NodeProps<StepNodeType>) {
             def.accent
           )}
         >
-          <Icon className="size-4" />
+          <Icon className={cn("size-4", isRunning && "animate-spin")} />
         </div>
         <span className="text-sm font-semibold">{title}</span>
       </div>
@@ -50,11 +66,16 @@ function StepNodeComponent({ data, selected }: NodeProps<StepNodeType>) {
       {fieldsWithValues?.length > 0 && (
         <div className="flex flex-col gap-1 border-t border-border px-3 py-2.5">
           {fieldsWithValues.map((field) => (
-            <div key={field.key} className="flex items-center justify-between gap-2 text-xs">
+            <div
+              key={field.key}
+              className="flex items-center justify-between gap-2 text-xs"
+            >
               <span className="shrink-0 text-muted-foreground">
                 {field.label}
               </span>
-              <span className="truncate items-end" title={values[field.key]}>{values[field.key]}</span>
+              <span className="truncate items-end" title={values[field.key]}>
+                {values[field.key]}
+              </span>
             </div>
           ))}
         </div>

@@ -7,6 +7,7 @@ import { getWorkflow } from "@/features/workflows/data"
 import { Room } from "@/features/workflows/components/Room"
 import { WorkflowShell } from "@/features/workflows/components/WorkflowShell"
 import { WorkflowProvider } from "@/features/workflows/components/WorkflowProvider"
+import { WorkflowExecutionProvider } from "@/features/workflows/components/WorkflowExecutionProvider"
 
 export default async function WorkflowPage({
   params,
@@ -33,7 +34,9 @@ export default async function WorkflowPage({
     <div className="h-full w-full">
       <Room roomId={workflowId}>
         <WorkflowProvider>
-          <WorkflowShell workflowId={workflowId} />
+          <WorkflowExecutionProvider workflowId={workflowId}>
+            <WorkflowShell workflowId={workflowId} />
+          </WorkflowExecutionProvider>
         </WorkflowProvider>
       </Room>
     </div>

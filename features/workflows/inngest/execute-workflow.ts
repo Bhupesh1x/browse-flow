@@ -20,6 +20,7 @@ const executeWorkflowEvent = eventType("app/execute.workflow", {
 export const executeWorkflow = inngest.createFunction(
   {
     id: "execute-workflow",
+    retries: 3,
     triggers: [executeWorkflowEvent],
     cancelOn: [
       {
@@ -93,6 +94,13 @@ export const executeWorkflow = inngest.createFunction(
     // Accumulated outputs from executed nodes, keyed by nodeId
     const outputs: NodeOutputs = {}
 
+    // Track execution results for final summary
+    const executionResults: {
+      nodeId: string
+      status: "complete" | "failed"
+      error?: string
+    }[] = []
+
     // Loop through nodes in topological order and execute each as a step
     for (const nodeId of sortedNodeIds) {
       const node = nodeMap.get(nodeId)
@@ -101,45 +109,86 @@ export const executeWorkflow = inngest.createFunction(
         continue
       }
 
-      await emitStepUpdate(step, workflowId, nodeId, "running")
+      // Emit running status before execution starts
+      await emitStepUpdate(step, workflowId, nodeId, "running", {
+        nodeId: node.id,
+        type: node.data.type,
+        kind: node.data.kind,
+        title: node.data.title,
+        startedAt: Date.now(),
+      })
 
-      // Resolve placeholders in node values using previous outputs
-      const resolvedValues = resolveNodeInputs(node.data.values, outputs)
+      try {
+        // Execute node as a durable step - if workflow crashes and retries,
+        // completed nodes won't re-execute (memoization)
+        const result = await step.run(
+          `node-${nodeId}-${node.data.title}`,
+          async () => {
+            // Resolve placeholders in node values using previous outputs
+            const resolvedValues = resolveNodeInputs(node.data.values, outputs)
 
-      const executor = nodeExecutors[node.data.type]
+            const executor = nodeExecutors[node.data.type]
 
-      let executorResult: unknown = null
-      if (executor) {
-        executorResult = await executor({ values: resolvedValues, getStagehand })
-      }
+            let executorResult: unknown = null
+            if (executor) {
+              executorResult = await executor({
+                values: resolvedValues,
+                getStagehand,
+              })
+            }
 
-      // Store the output for this node
-      outputs[nodeId] = executorResult
-
-      const result = await step.run(
-        `node-${nodeId}-${node.data.title}`,
-        async () => {
-          return {
-            nodeId: node.id,
-            type: node.data.type,
-            kind: node.data.kind,
-            title: node.data.title,
-            values: resolvedValues,
-            output: executorResult,
-            executedAt: Date.now(),
+            return {
+              nodeId: node.id,
+              type: node.data.type,
+              kind: node.data.kind,
+              title: node.data.title,
+              values: resolvedValues,
+              output: executorResult,
+              executedAt: Date.now(),
+            }
           }
-        }
-      )
+        )
 
-      await emitStepUpdate(step, workflowId, nodeId, "complete", result)
+        // Store the output for subsequent nodes to reference
+        outputs[nodeId] = result.output
+
+        // Emit complete status after successful execution
+        await emitStepUpdate(step, workflowId, nodeId, "complete", result)
+
+        executionResults.push({ nodeId, status: "complete" })
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : String(error)
+        const errorStack = error instanceof Error ? error.stack : undefined
+
+        // Emit failed status with error details
+        await emitStepUpdate(step, workflowId, nodeId, "failed", {
+          nodeId: node.id,
+          type: node.data.type,
+          kind: node.data.kind,
+          title: node.data.title,
+          error: errorMessage,
+          errorStack,
+          failedAt: Date.now(),
+        })
+
+        executionResults.push({ nodeId, status: "failed", error: errorMessage })
+
+        // Clean up stagehand before re-throwing
+        await stagehand?.close()
+
+        // Re-throw to let Inngest handle retries
+        throw error
+      }
     }
 
-    await stagehand?.close();
+    await stagehand?.close()
 
     return {
       message: `Workflow ${workflowId} complete`,
       nodesExecuted: sortedNodeIds.length,
       executionOrder: sortedNodeIds,
+      results: executionResults,
     }
   }
 )
