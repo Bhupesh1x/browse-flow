@@ -3,6 +3,12 @@ import * as toposort from "toposort"
 import { Stagehand } from "@browserbasehq/stagehand"
 import { eventType, NonRetriableError } from "inngest"
 
+import {
+  getAvailableKey,
+  markKeyExhausted,
+  is402Error,
+  getAvailableKeyCount,
+} from "@/lib/browserbase-keys"
 import { inngest } from "@/inngest/client"
 
 import { getWorkflow } from "../data"
@@ -76,19 +82,59 @@ export const executeWorkflow = inngest.createFunction(
     const nodeMap = new Map(connectedNodes.map((node) => [node.id, node]))
 
     let stagehand: Stagehand | undefined
+    let lastUsedKeyName: string | undefined
+    let lastUsedApiKey: string | undefined
 
-    async function getStagehand() {
+    /**
+     * Initialize Stagehand with key rotation support.
+     * If a 402 error occurs, marks the current key as exhausted and tries the next one.
+     */
+    async function getStagehand(): Promise<Stagehand> {
       if (stagehand) return stagehand
 
-      stagehand = new Stagehand({
-        env: "BROWSERBASE",
-        apiKey: process.env.BROWSERBASE_API_KEY,
-        model: "google/gemini-2.5-flash",
-        disablePino: true,
-      })
+      // Try to initialize with available keys, rotating on 402 errors
+      while (getAvailableKeyCount() > 0) {
+        const key = getAvailableKey()
 
-      await stagehand.init()
-      return stagehand
+        if (!key) {
+          throw new NonRetriableError(
+            "All Browserbase API keys exhausted (402 rate limit). Add more keys to BROWSERBASE_KEYS or wait for quota reset."
+          )
+        }
+
+        lastUsedKeyName = key.name
+        lastUsedApiKey = key.apiKey
+
+        try {
+          console.log(`[stagehand] Trying key: ${key.name}`)
+
+          stagehand = new Stagehand({
+            env: "BROWSERBASE",
+            apiKey: key.apiKey,
+            model: "google/gemini-2.5-flash",
+            disablePino: true,
+          })
+
+          await stagehand.init()
+          console.log(`[stagehand] Successfully initialized with key: ${key.name}`)
+          return stagehand
+        } catch (error) {
+          if (is402Error(error)) {
+            console.warn(
+              `[stagehand] Key "${key.name}" hit 402 rate limit, rotating to next key...`
+            )
+            markKeyExhausted(key.apiKey)
+            stagehand = undefined // Reset for next attempt
+            continue
+          }
+          // Non-402 error, rethrow
+          throw error
+        }
+      }
+
+      throw new NonRetriableError(
+        "All Browserbase API keys exhausted (402 rate limit). Add more keys to BROWSERBASE_KEYS or wait for quota reset."
+      )
     }
 
     // Accumulated outputs from executed nodes, keyed by nodeId
@@ -161,16 +207,43 @@ export const executeWorkflow = inngest.createFunction(
           error instanceof Error ? error.message : String(error)
         const errorStack = error instanceof Error ? error.stack : undefined
 
-        // Emit failed status with error details
-        await emitStepUpdate(step, workflowId, nodeId, "failed", {
-          nodeId: node.id,
-          type: node.data.type,
-          kind: node.data.kind,
-          title: node.data.title,
-          error: errorMessage,
-          errorStack,
-          failedAt: Date.now(),
-        })
+        // Check if this is a 402 rate limit error during execution
+        if (is402Error(error) && lastUsedApiKey) {
+          console.warn(
+            `[stagehand] Key "${lastUsedKeyName}" hit 402 during node execution, marking exhausted`
+          )
+          markKeyExhausted(lastUsedApiKey)
+
+          // Close the exhausted stagehand instance
+          await stagehand?.close()
+          stagehand = undefined
+
+          // Check if we have more keys to try
+          const remainingKeys = getAvailableKeyCount()
+          if (remainingKeys > 0) {
+            // Emit a warning but don't fail - the retry will use a new key
+            await emitStepUpdate(step, workflowId, nodeId, "failed", {
+              nodeId: node.id,
+              type: node.data.type,
+              kind: node.data.kind,
+              title: node.data.title,
+              error: `Rate limit hit, retrying with different API key (${remainingKeys} keys remaining)`,
+              errorStack,
+              failedAt: Date.now(),
+            })
+          }
+        } else {
+          // Emit failed status with error details
+          await emitStepUpdate(step, workflowId, nodeId, "failed", {
+            nodeId: node.id,
+            type: node.data.type,
+            kind: node.data.kind,
+            title: node.data.title,
+            error: errorMessage,
+            errorStack,
+            failedAt: Date.now(),
+          })
+        }
 
         executionResults.push({ nodeId, status: "failed", error: errorMessage })
 
