@@ -9,6 +9,7 @@ import { inngest } from "@/inngest/client"
 import type { WorkflowGraph } from "@/lib/db/schema"
 
 import { createWorkflow, deleteWorkflow, saveWorkflowGraph } from "./data"
+import { clearWorkflowExecutionStatus } from "./actions/getWorkflowExecutionStatus"
 
 export async function createWorkflowAction(name: string) {
   const { orgId } = await auth()
@@ -55,6 +56,9 @@ export async function runWorkflowAction(
   if (!result.success) {
     return result
   }
+
+  // Clear previous execution status before starting new run
+  await clearWorkflowExecutionStatus(workflowId)
 
   await inngest.send({
     name: "app/execute.workflow",
