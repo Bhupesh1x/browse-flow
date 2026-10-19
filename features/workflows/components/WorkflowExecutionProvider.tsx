@@ -1,10 +1,6 @@
 "use client"
 
-import {
-  createContext,
-  useContext,
-  type ReactNode,
-} from "react"
+import { createContext, useCallback, useContext, type ReactNode } from "react"
 
 import {
   useWorkflowExecution,
@@ -16,6 +12,7 @@ type WorkflowExecutionContextValue = {
   nodeStatuses: Map<string, NodeExecutionState>
   getNodeStatus: (nodeId: string) => NodeStatus | null
   isConnected: boolean
+  resetForNewRun: () => void
 }
 
 const WorkflowExecutionContext =
@@ -30,15 +27,18 @@ export function WorkflowExecutionProvider({
   workflowId,
   children,
 }: WorkflowExecutionProviderProps) {
-  const { nodeStatuses, isConnected } = useWorkflowExecution(workflowId)
+  const { nodeStatuses, isConnected, resetForNewRun } = useWorkflowExecution(workflowId)
 
-  const getNodeStatus = (nodeId: string): NodeStatus | null => {
-    return nodeStatuses.get(nodeId)?.status ?? null
-  }
+  const getNodeStatus = useCallback(
+    (nodeId: string): NodeStatus | null => {
+      return nodeStatuses.get(nodeId)?.status ?? null
+    },
+    [nodeStatuses]
+  )
 
   return (
     <WorkflowExecutionContext.Provider
-      value={{ nodeStatuses, getNodeStatus, isConnected }}
+      value={{ nodeStatuses, getNodeStatus, isConnected, resetForNewRun }}
     >
       {children}
     </WorkflowExecutionContext.Provider>

@@ -10,7 +10,8 @@ export type NodeExecutionRecord = {
   status: "running" | "complete" | "failed"
   output?: Record<string, unknown>
   error?: string | null
-  updatedAt: Date
+  /** Unix timestamp in milliseconds */
+  updatedAt: number
 }
 
 /**
@@ -31,7 +32,14 @@ export async function getWorkflowExecutionStatus(
     .from(workflowExecutions)
     .where(eq(workflowExecutions.workflowId, workflowId))
 
-  return executions as NodeExecutionRecord[]
+  // Convert Date to timestamp for safe serialization across server/client boundary
+  return executions.map((exec) => ({
+    nodeId: exec.nodeId,
+    status: exec.status as NodeExecutionRecord["status"],
+    output: exec.output ?? undefined,
+    error: exec.error,
+    updatedAt: exec.updatedAt.getTime(),
+  }))
 }
 
 /**

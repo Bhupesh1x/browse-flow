@@ -19,6 +19,7 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
   // Get realtime execution status for this node
   const executionStatus = useNodeExecutionStatus(id)
   const isRunning = executionStatus === "running"
+  const isComplete = executionStatus === "complete"
   const isFailed = executionStatus === "failed"
 
   const Icon = isRunning ? Loader2 : DefaultIcon
@@ -35,9 +36,11 @@ function StepNodeComponent({ id, data, selected }: NodeProps<StepNodeType>) {
         "max-w-80 min-w-50 rounded-(--radius) border-2 bg-card text-card-foreground transition-all duration-200",
         "border-border",
         selected && "ring-2 ring-ring ring-offset-2 ring-offset-background",
-        // Execution status rings (override selection ring when active)
+        // Execution status styles (override selection ring when active)
         isRunning &&
           "border-blue-500 ring-2 ring-blue-500 ring-offset-2 ring-offset-background",
+        isComplete &&
+          "border-green-500 ring-2 ring-green-500 ring-offset-2 ring-offset-background",
         isFailed &&
           "border-red-500 ring-2 ring-red-500 ring-offset-2 ring-offset-background"
       )}

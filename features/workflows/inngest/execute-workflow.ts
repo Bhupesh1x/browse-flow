@@ -26,7 +26,7 @@ const executeWorkflowEvent = eventType("app/execute.workflow", {
 export const executeWorkflow = inngest.createFunction(
   {
     id: "execute-workflow",
-    retries: 3,
+    retries: 0,
     triggers: [executeWorkflowEvent],
     cancelOn: [
       {

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { validateGraph } from "../../lib/validate-graph"
 import type { StepNodeType } from "../../nodes/node-registry"
 import { deleteWorkflowAction, runWorkflowAction } from "../../actions"
+import { useWorkflowExecutionContext } from "../WorkflowExecutionProvider"
 
 
 interface ActionsMenuProps {
@@ -73,6 +74,7 @@ interface SidebarHeaderProps {
 export function SidebarHeader({ workflowId }: SidebarHeaderProps) {
   const router = useRouter()
   const { getNodes, getEdges } = useReactFlow<StepNodeType>()
+  const { resetForNewRun } = useWorkflowExecutionContext()
   const [isDeleting, setIsDeleting] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
 
@@ -103,6 +105,9 @@ export function SidebarHeader({ workflowId }: SidebarHeaderProps) {
       return
     }
 
+    // Clear previous run's status before starting new run
+    resetForNewRun()
+    
     setIsRunning(true)
 
     const result = await runWorkflowAction(workflowId, graph)

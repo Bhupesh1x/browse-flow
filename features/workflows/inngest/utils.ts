@@ -41,7 +41,6 @@ async function upsertNodeExecution(
 ) {
   const error = output?.error as string | undefined
 
-  // Check if record exists
   const [existing] = await db
     .select({ id: workflowExecutions.id })
     .from(workflowExecutions)
